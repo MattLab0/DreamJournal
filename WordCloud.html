@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { margin: 0; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <script>
+      const topWords = <?!= JSON.stringify(topWords) ?>;
+    </script>
+
+    <canvas id="cloudCanvas" width="700"></canvas>
+
+    <script>
+      window.onload = function() {
+        const canvas = document.getElementById('cloudCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Calulate params
+        const maxFont = 72, minFont = 24;
+        const counts = topWords.map(e => e[1].count);
+        const minCount = Math.min(...counts);
+        const maxCount = Math.max(...counts);
+
+        function scaleFontSize(count) {
+          if (maxCount === minCount) return (minFont + maxFont) / 2;
+          return minFont + ((count - minCount) / (maxCount - minCount)) * (maxFont - minFont);
+        }
+
+        const lineSpacing = 15;
+        const sidePadding = 20;
+        const verticalPadding = 50;
+
+        // Build lines
+        const lines = [];
+        let curLine = { words: [], totalWidth: 0, height: 0 };
+
+        // Color palette
+        const colors = ['#4285F4', '#EA4335', '#009688', '#34A853', '#673AB7'];
+        let colorIndex = 0;
+
+        topWords.forEach(entry => {
+          const text = entry[1].display;
+          const count = entry[1].count;
+          const size = Math.round(scaleFontSize(count));
+          ctx.font = size + 'px Arial';
+          const w = ctx.measureText(text).width;
+          const spacing = curLine.words.length ? 20 : 0;
+
+          // wrap if needed
+          if (curLine.totalWidth + w + spacing > canvas.width - sidePadding * 2) {
+            lines.push(curLine);
+            curLine = { words: [], totalWidth: 0, height: 0 };
+          }
+
+          curLine.words.push({
+            text, size, width: w,
+            color: colors[(colorIndex++) % colors.length]
+          });
+          curLine.totalWidth += w + spacing;
+          curLine.height = Math.max(curLine.height, size);
+        });
+        if (curLine.words.length) lines.push(curLine);
+
+        // Calculate total height
+        let contentHeight = 0;
+        lines.forEach((line, i) => {
+          contentHeight += line.height;
+          if (i < lines.length - 1) contentHeight += lineSpacing;
+        });
+
+        // Set canvas height with equal padding
+        canvas.height = contentHeight + (verticalPadding * 2);
+
+        // Draw background
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw each line centered
+        let y = verticalPadding;
+        lines.forEach(line => {
+          let x = (canvas.width - line.totalWidth) / 2;
+          line.words.forEach(word => {
+            ctx.font = word.size + 'px Arial';
+            ctx.fillStyle = word.color;
+            const textY = y + line.height * 0.8; // baseline adjustment
+            ctx.fillText(word.text, x, textY);
+            x += word.width + 20;
+          });
+          y += line.height + lineSpacing;
+        });
+
+        // Send back to server
+        const dataUrl = canvas.toDataURL('image/png');
+        google.script.run
+          .withSuccessHandler(() => google.script.host.close())
+          .withFailureHandler(err => alert('Insert failed: ' + err.message))
+          .insertWordCloudImage(dataUrl);
+      };
+    </script>
+  </body>
+</html>
