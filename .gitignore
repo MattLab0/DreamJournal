@@ -1,0 +1,18 @@
+# Ignore clasp local config file
+.clasp.json
+
+# Ignore node_modules if you have any (for apps using npm packages)
+node_modules/
+
+# Ignore system files (macOS, Windows)
+.DS_Store
+Thumbs.db
+
+# Ignore logs
+*.log
+
+# Ignore environment files (if you use any)
+.envgi
+
+# Ignore debug script
+debug.js
